@@ -427,7 +427,6 @@ class SVD_img2vid(BaseModel):
 
         latent_image = kwargs.get("concat_latent_image", None)
         noise = kwargs.get("noise", None)
-        device = kwargs["device"]
 
         if latent_image is None:
             latent_image = torch.zeros_like(noise)
@@ -711,8 +710,6 @@ class HunyuanDiT(BaseModel):
 
         width = kwargs.get("width", 768)
         height = kwargs.get("height", 768)
-        crop_w = kwargs.get("crop_w", 0)
-        crop_h = kwargs.get("crop_h", 0)
         target_width = kwargs.get("target_width", width)
         target_height = kwargs.get("target_height", height)
 
@@ -803,6 +800,10 @@ class LTXV(BaseModel):
         guiding_latent = kwargs.get("guiding_latent", None)
         if guiding_latent is not None:
             out['guiding_latent'] = comfy.conds.CONDRegular(guiding_latent)
+
+        guiding_latent_noise_scale = kwargs.get("guiding_latent_noise_scale", None)
+        if guiding_latent_noise_scale is not None:
+            out["guiding_latent_noise_scale"] = comfy.conds.CONDConstant(guiding_latent_noise_scale)
 
         out['frame_rate'] = comfy.conds.CONDConstant(kwargs.get("frame_rate", 25))
         return out
