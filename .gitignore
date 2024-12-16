@@ -23,3 +23,8 @@ web_custom_versions/
 .DS_Store
 .direnv
 workflows
+output
+/input/*
+flake.lock
+flake.nix
+.envrc
