@@ -3,53 +3,58 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    flake-utils.url = "github:numtide/flake-utils";
   };
 
-  outputs = { self, nixpkgs }: {
-    devShells.aarch64-darwin.default =
+  outputs = { self, nixpkgs, flake-utils }:
+    flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs {
-          system = "aarch64-darwin";
+          inherit system;
           config = {
             allowUnfree = true;
             cudaSupport = false;
-            rocmSupport = true;
+            rocmSupport = system == "aarch64-darwin";
           };
         };
 
-        python = pkgs.python312;
-
-        sd-launcher = pkgs.writeShellScriptBin "sd-launch" ''
-          #!/usr/bin/env bash
-          python main.py --listen 0.0.0.0
-        '';
+        pythonEnv = pkgs.python312.withPackages (ps: with ps; [
+          pip
+          virtualenv
+          # Add other fixed dependencies here
+        ]);
 
         sd-setup = pkgs.writeShellScriptBin "sd-setup" ''
-          #!/usr/bin/env bash
           pip install -U wheel setuptools
-          pip install --pre torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/nightly/cpu
-          pip install -r requirements.txt
+          pip install --upgrade --pre torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/nightly/cpu
+          pip install --upgrade mflux
+          pip install --upgrade -r requirements.txt
         '';
-      in pkgs.mkShell {
-        buildInputs = with pkgs; [
-            sd-launcher
+
+        sd-launch = pkgs.writeShellScriptBin "sd-launch" ''
+          python main.py --listen 0.0.0.0
+        '';
+      in {
+        devShells.default = pkgs.mkShell {
+          buildInputs = [
+            pythonEnv
+            pkgs.poetry
             sd-setup
+            sd-launch
+          ];
 
-          # Python environment
-          (python.withPackages (ps: with ps; [
-            pip
-          ]))
-        ];
+          shellHook = ''
+            # Create virtual environment if it doesn't exist
+            if [ ! -d ".venv" ]; then
+              python -m venv .venv
+            fi
+            source .venv/bin/activate
 
-        shellHook = ''
-          # Create Python venv if it doesn't exist
-          if [ ! -d ".venv" ]; then
-          python -m venv .venv
-          fi
-          source .venv/bin/activate
-
-          echo "ComfyUI development environment ready!"
+            echo "ComfyUI development environment ready!"
+            echo "Run 'sd-setup' to install dependencies"
+            echo "Run 'sd-launch' to start the server"
           '';
         };
-  };
+      }
+    );
 }
